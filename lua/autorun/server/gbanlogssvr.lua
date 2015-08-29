@@ -37,7 +37,7 @@ function addbanlog(calling,bantime,target,reason)
 		file.CreateDir("gbanlogs")
 		return
 	end
-		if !IsValid(reason) then
+		if reason == nil then
 		reason = "Reason Unspecified"
 		return
 	end
@@ -55,7 +55,7 @@ function addsidbanlog(calling,time,target,reason)
 		file.CreateDir("gbanlogs")
 		return 
 	end
-	if !IsValid(reason) then
+	if reason == nil then
 		reason = "Reason Unspecified"
 		return
 	end
