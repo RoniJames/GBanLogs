@@ -1,16 +1,14 @@
-nclude("gokubanlogsconfig.lua")
+include("gbanlogsbanlogsconfig.lua")
 util.AddNetworkString( "devbanlogscl" )
 util.AddNetworkString( "devbanlogssvr" )
 
 
-
-
 hook.Add("PlayerIntitalSpawn","alertadminsonjoincheck",function(ply)
-local readlogs = table.KeyFromValue(util.JSONTOTable(file.Read("goku/banlogs.txt","DATA")), ply:SteamID())
+local readlogs = table.KeyFromValue(util.JSONTOTable(file.Read("gbanlogs/banlogs.txt","DATA")), ply:SteamID())
 	if alertadminsonjoin == true and !readlogs == nil and !ply:CheckGroup(glogscheckwhitelist)  then
 		for k, v in pairs(player.GetAll()) do 
 			if v:CheckGroup(groupsthatseetheecho) then
-				v:ChatPrint("SERVER: "..ply:Nick().." has been banned before "  for ("..readlogs..")")
+				v:ChatPrint("SERVER: "..ply:Nick().."has been banned before  for ("..readlogs..")")
 			end
 		end
 	end
@@ -26,64 +24,151 @@ net.Receive( "devbanlogscl", function( ply )
 		ply:ChatPrint("You do not have access to the ban logs")
 	end
 end)
-	
+	-- all the required functions
 function devbanlogsfunc(ply)
-	local baninfo = util.JSONToTable(file.Read("goku/banlogs.txt"))
+	local baninfo = util.JSONToTable(file.Read("gbanlogs/banlogs.txt"))
 	net.Start("devbanlogssvr")
 	net.WriteTable(baninfo)
 	net.Send(ply)
 end
 
 function addbanlog(calling,bantime,target,reason)
-	if !file.IsDir("goku","DATA") then
-		file.CreateDir("goku")
+	if !file.IsDir("gbanlogs","DATA") then
+		file.CreateDir("gbanlogs")
 		return
 	end
-		if reason = nil then
+		if !IsValid(reason) then
 		reason = "Reason Unspecified"
 		return
 	end
-local json = file.Read("goku/banlogs.txt", "DATA")
+local json = file.Read("gbanlogs/banlogs.txt", "DATA")
 		local banlogs = util.JSONToTable( json ) or {}
 
 		banlogs[calling:Nick().."("..calling:SteamID()..") banned "..target:Nick().."("..target:SteamID()..") for "..bantime.."("..reason..")"] = target:SteamID()
 		local json = util.TableToJSON( banlogs )
-		file.Write( "goku/banlogs.txt", json )		
+		file.Write( "gbanlogs/banlogs.txt", json )		
 		print("Ban Added to Goku's Ban Archive ;)")
 	end
 
 function addsidbanlog(calling,time,target,reason)
-	if !file.IsDir("goku","DATA") then
-		file.CreateDir("goku")
+	if !file.IsDir("gbanlogs","DATA") then
+		file.CreateDir("gbanlogs")
 		return 
 	end
-	if reason = nil then
+	if !IsValid(reason) then
 		reason = "Reason Unspecified"
 		return
 	end
-local json = file.Read("goku/banlogs.txt", "DATA")
+local json = file.Read("gbanlogs/banlogs.txt", "DATA")
 
 		local banlogs = util.JSONToTable( json ) or {}
 
 		banlogs[calling:Nick().."("..calling:SteamID()..") banned "..target.." for "..time.."("..reason..")"] = target
 	local json = util.TableToJSON( banlogs )
 		
-		file.Write( "goku/banlogs.txt", json )		
-		print("Ban Added to Goku's Ban Archive ;)")
+		file.Write( "gbanlogs/banlogs.txt", json )		
+		print("Ban Added to GBanLogs ;)")
 	end
 
 function addsidunbanlog(calling,target)
-	if !file.IsDir("goku","DATA") then
-		file.CreateDir("goku")
+	if !file.IsDir("gbanlogs","DATA") then
+		file.CreateDir("gbanlogs")
 		return 
 	end
-		local json = file.Read("goku/banlogs.txt", "DATA")
+		local json = file.Read("gbanlogs/banlogs.txt", "DATA")
 		local banlogs = util.JSONToTable( json ) or {}
 
 		banlogs[calling:Nick().."("..calling:SteamID()..") Unbanned "..target] = target
 
 		local json = util.TableToJSON( banlogs )
 		
-		file.Write( "goku/banlogs.txt", json )	
-		print("Unban Added to Goku's Ban Archive ;)")		
+		file.Write( "gbanlogs/banlogs.txt", json )	
+		print("Unban Added to GBanLogs ;)")		
 	end
+	
+function ULib.kickban( ply, time, reason, admin )
+	if not time or type( time ) ~= "number" then
+		time = 0
+	end
+	ULib.addBan( ply:SteamID(), time, reason, ply:Name(), admin, true )
+	addbanlog(admin,time,ply,reason)
+	-- Load our currently banned users so we don't overwrite them
+	if ULib.fileExists( "cfg/banned_user.cfg" ) then
+		ULib.execFile( "cfg/banned_user.cfg" )
+	end
+end
+
+function ULib.unban( steamid, admin )
+
+	--Default banlist
+	if ULib.fileExists( "cfg/banned_user.cfg" ) then
+		ULib.execFile( "cfg/banned_user.cfg" )
+	end
+	ULib.queueFunctionCall( game.ConsoleCommand, "removeid " .. steamid .. ";writeid\n" ) -- Execute after done loading bans
+	--ULib banlist
+	ULib.bans[ steamid ] = nil
+	ULib.fileWrite( ULib.BANS_FILE, ULib.makeKeyValues( ULib.bans ) )
+	addsidunbanlog(admin,steamid)
+end
+	
+	
+function ULib.addBan( steamid, time, reason, name, admin, alreadybanned )
+	local alreadybanned = false
+	local strTime = time ~= 0 and string.format( "for %s minute(s)", time ) or "permanently"
+	local showReason = string.format( "Banned %s: %s", strTime, reason )
+
+	local players = player.GetAll()
+	for i=1, #players do
+		if players[ i ]:SteamID() == steamid then
+			ULib.kick( players[ i ], showReason, admin )
+		end
+	end
+
+	-- Remove all semicolons from the reason to prevent command injection
+	showReason = string.gsub(showReason, ";", "")
+
+	-- This redundant kick code is to ensure they're kicked -- even if they're joining
+	game.ConsoleCommand( string.format( "kickid %s %s\n", steamid, showReason or "" ) )
+	game.ConsoleCommand( string.format( "banid %f %s kick\n", time, steamid ) )
+	game.ConsoleCommand( "writeid\n" )
+
+	local admin_name
+	if admin then
+		admin_name = "(Console)"
+		if admin:IsValid() then
+			admin_name = string.format( "%s(%s)", admin:Name(), admin:SteamID() )
+		end
+	end
+
+	local t = {}
+	if ULib.bans[ steamid ] then
+		t = ULib.bans[ steamid ]
+		t.modified_admin = admin_name
+		t.modified_time = os.time()
+	else
+		t.admin = admin_name
+	end
+	t.time = t.time or os.time()
+	if time > 0 then
+		t.unban = ( ( time * 60 ) + os.time() )
+	else
+		t.unban = 0
+	end
+	if reason then
+		t.reason = reason
+	end
+	if name then
+		t.name = name
+	end
+	ULib.bans[ steamid ] = t
+	ULib.fileWrite( ULib.BANS_FILE, ULib.makeKeyValues( ULib.bans ) )
+	if !alreadybanned == true then
+	
+	addsidbanlog(admin,time,steamid,reason)
+	end
+end
+	
+	
+	
+	
+
