@@ -3,7 +3,7 @@ function ulx.backgroundcheck(calling_ply,steamid)
 	if file.Read("gbanlogs/banlogs.txt","DATA") == "" or nil then
 		banlogs = {}
 	else
-		banlogs = util.JSONToTable(file.Read("goku/banlogs.txt","DATA"))
+		banlogs = util.JSONToTable(file.Read("gbanlogs/banlogs.txt","DATA"))
 	net.Start("devbanlogssvr")
 	net.WriteTable(banlogs)
 	net.WriteString(steamid)
