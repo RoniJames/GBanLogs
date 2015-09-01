@@ -18,17 +18,19 @@ end)
 		
 		
 net.Receive( "devbanlogscl", function( ply )
-	local color = net.ReadString()
+if ply:IsSuperadmin() then
+	local settings = net.ReadTable()
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
 	end
-	local colortbl = {}
-	colortbl.color = {}
-	colortbl.extra = {}
-	colortbl.color[1] = color
-	file.Write("gbanlogs/settings.txt","DATA")
-	
-
+	local tbl = util.JSONToTable(file.Read("gbanlogs/banlogs.txt","DATA"))
+	tbl.color = settings.color or 255,255,255
+	tbl.canseeecho = settings.canseeecho or "superadmin"
+	tbl.shouldecho = settings.shouldecho or true
+	file.Write("gbanlogs/settings.txt",tbl)
+else 
+	ply:ChatPrint("You cannot edit these settings")
+end
 end)
 	-- all the required functions
 function devbanlogsfunc(ply)
@@ -71,7 +73,7 @@ local json = file.Read("gbanlogs/banlogs.txt", "DATA")
 
 function addsidbanlog(calling,time,target,reason)
 	local hour = os.date( "%I:%M %p")
-	local date = os.date("%d/%m/%Y",time)
+	local date = os.date("%d/%m/%Y")
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
 	end
