@@ -18,19 +18,25 @@ end)
 		
 		
 net.Receive( "devbanlogscl", function( ply )
-if ply:IsSuperadmin() then
+local tbl = util.JSONToTable(file.Read("gbanlogs/banlogs.txt","DATA"))
+if table.HasValue(tbl.cansettings,ply:GetUserGroup()) then
+	shouldwrite = true
+elseif !tbl.cansettings and ply:IsSuperAdmin() then
+	shouldwrite = true
+	end
+	if shouldwrite then
 	local settings = net.ReadTable()
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
 	end
-	local tbl = util.JSONToTable(file.Read("gbanlogs/banlogs.txt","DATA"))
 	tbl.color = settings.color or 255,255,255
 	tbl.canseeecho = settings.canseeecho or "superadmin"
 	tbl.shouldecho = settings.shouldecho or true
-	file.Write("gbanlogs/settings.txt",tbl)
-else 
-	ply:ChatPrint("You cannot edit these settings")
-end
+	tbl.cansettings = settings.cansettings
+	file.Write("gbanlogs/banlogs.txt",tbl)
+	else 
+		ply:ChatPrint("You do not have access to this command")
+	end
 end)
 	-- all the required functions
 function devbanlogsfunc(ply)
@@ -216,6 +222,3 @@ function ULib.addBan( steamid, time, reason, name, admin, alreadybanned )
 end
 	
 	
-	
-	
-
