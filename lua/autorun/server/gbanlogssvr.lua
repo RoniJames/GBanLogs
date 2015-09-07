@@ -4,8 +4,8 @@ util.AddNetworkString( "devbanlogssvr" )
 
 
 hook.Add("PlayerIntitalSpawn","alertadminsonjoincheck",function(ply)
-local readlogs = table.KeyFromValue(util.JSONTOTable(file.Read("gbanlogs/banlogs.txt","DATA")), ply:SteamID())
-	if alertadminsonjoin and !readlogs == "" and !ply:CheckGroup(glogscheckwhitelist) then
+local readlogs = table.KeyFromValue(util.JSONTOTable(file.Read("gbanlogs/banlogs.txt","DATA").banlogs), ply:SteamID())
+	if alertadminsonjoin and readlogs and !ply:CheckGroup(glogscheckwhitelist) then
 		for k, v in pairs(player.GetAll()) do 
 			if v:CheckGroup(groupsthatseetheecho) then
 				v:ChatPrint("SERVER: "..ply:Nick().." has been banned before  for ("..readlogs..")")
@@ -47,23 +47,26 @@ function addbanlog(calling,bantime,target,reason)
 		if !reason then
 		reason = "Reason Unspecified"
 	end
-		local nickname = "(Console)"
-	if calling:IsValid() then
+	local nickname = "(Console)"
+	if IsValid(calling) then
 		nickname = calling:Nick()
 	end
 	local callid = "Console"
-	if calling:IsValid() then
+	if IsValid(calling) then
 		callid = calling:SteamID()
 	end
-local json = file.Read("gbanlogs/banlogs.txt", "DATA")
-	local banlogs
+		local json = file.Read("gbanlogs/banlogs.txt", "DATA")
+		local banlogs
 		if !json then
 			banlogs = {}
 			banlogs.banlogs = {}
 		else
 			banlogs = util.JSONToTable( json )
 		end
-		banlogs.banlogs[" [ "..date.." | "..hour.." ] "..calling:Nick().."( "..calling:SteamID().." ) banned "..target:Nick().."("..target:SteamID()..") for "..bantime.." minute(s) \n Reason: "..reason.." "] = target:SteamID()
+		if !banlogs.banlogs then
+			banlogs.banlogs = {}
+		end
+		banlogs.banlogs[" [ "..date.." | "..hour.." ] "..nickname.."( "..callid.." ) banned "..target:Nick().."("..target:SteamID()..") for "..bantime.." minute(s) \n Reason: "..reason.." "] = target:SteamID()
 		local json2 = util.TableToJSON( banlogs )
 		file.Write( "gbanlogs/banlogs.txt", json2 )		
 		print("Ban Added to GBanLogs Ban Archive ;)")
@@ -71,30 +74,33 @@ local json = file.Read("gbanlogs/banlogs.txt", "DATA")
 
 function addsidbanlog(calling,time,target,reason)
 	local hour = os.date( "%I:%M %p")
-	local date = os.date("%d/%m/%Y",time)
+	local date = os.date("%d/%m/%Y")
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
 	end
 	local nickname = "(Console)"
-	if calling:IsValid() then
+	if IsValid(calling) then
 		nickname = calling:Nick()
 	end
 	local callid = "Console"
-	if calling:IsValid() then
+	if IsValid(calling) then
 		callid = calling:SteamID()
 	end
 	if reason == "" then
 		reason = "Reason Unspecified"
 	end
-local json = file.Read("gbanlogs/banlogs.txt", "DATA")
-local banlogs
+		local json = file.Read("gbanlogs/banlogs.txt", "DATA")
+		local banlogs
 		if !json then
 			banlogs = {}
 			banlogs.banlogs = {}
 		else
 			banlogs = util.JSONToTable( json )
 		end
-		banlogs.banlogs[" [ "..date.." | "..hour.." ] "..calling:Nick().."( "..calling:SteamID().." ) banned "..target.." for "..time.." minute(s)\n Reason: "..reason.." "] = target
+		if !banlogs.banlogs then
+			banlogs.banlogs = {}
+		end
+		banlogs.banlogs[" [ "..date.." | "..hour.." ] "..nickname.."( "..callid.." ) banned "..target.." for "..time.." minute(s)\n Reason: "..reason.." "] = target
 	local json2 = util.TableToJSON( banlogs )
 		
 		file.Write( "gbanlogs/banlogs.txt", json2 )		
@@ -107,14 +113,13 @@ function addsidunbanlog(calling,target)
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
 	end
-	local nickname
-	local id
-	if calling:IsValid() then
-		nickname = "(Console)"
-		id = "Console"
-	else
+	local nickname = "(Console)"
+	if IsValid(calling) then
 		nickname = calling:Nick()
-		id = calling:SteamID()
+	end
+	local callid = "Console"
+	if IsValid(calling) then
+		callid = calling:SteamID()
 	end
 
 		local json = file.Read("gbanlogs/banlogs.txt", "DATA")
@@ -125,7 +130,11 @@ function addsidunbanlog(calling,target)
 		else
 			banlogs = util.JSONToTable( json )
 		end
-		banlogs.banlogs[" [ "..date..":"..hour.." ] "..nickname.."( "..id.." ) Unbanned "..target] = target
+		if !banlogs.banlogs then
+			banlogs.banlogs = {}
+		end
+		
+		banlogs.banlogs[" [ "..date..":"..hour.." ] "..nickname.."( "..callid.." ) Unbanned "..target] = target
 
 		local json2 = util.TableToJSON( banlogs )
 		
