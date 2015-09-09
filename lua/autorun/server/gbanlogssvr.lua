@@ -18,17 +18,6 @@ end)
 		
 		
 net.Receive( "devbanlogscl", function( ply )
-	local color = net.ReadString()
-	if !file.IsDir("gbanlogs","DATA") then
-		file.CreateDir("gbanlogs")
-	end
-	local colortbl = {}
-	colortbl.color = {}
-	colortbl.extra = {}
-	colortbl.color[1] = color
-	file.Write("gbanlogs/settings.txt","DATA")
-	
-
 end)
 	-- all the required functions
 function devbanlogsfunc(ply)
@@ -47,40 +36,45 @@ function addbanlog(calling,bantime,target,reason)
 		if !reason then
 		reason = "Reason Unspecified"
 	end
-		local nickname = "(Console)"
-	if calling:IsValid() then
+	local nickname = "(Console)"
+	if IsValid(calling) then
 		nickname = calling:Nick()
 	end
 	local callid = "Console"
-	if calling:IsValid() then
+	if IsValid(calling) then
 		callid = calling:SteamID()
 	end
 local json = file.Read("gbanlogs/banlogs.txt", "DATA")
 	local banlogs
 		if !json then
 			banlogs = {}
-			banlogs.banlogs = {}
+			banlogs.target = {}
 		else
 			banlogs = util.JSONToTable( json )
 		end
-		banlogs.banlogs[" [ "..date.." | "..hour.." ] "..calling:Nick().."( "..calling:SteamID().." ) banned "..target:Nick().."("..target:SteamID()..") for "..bantime.." minute(s) \n Reason: "..reason.." "] = target:SteamID()
-		local json2 = util.TableToJSON( banlogs )
+		if !banlogs.target then
+			banlogs.target = {}
+		end
+		banlogs.target[otime] = {}
+		banlogs.target.otime[banlogs] = " [ "..date.." | "..hour.." ] "..nickname.."( "..callid.." ) banned "..target:Nick().."("..target:SteamID()..") for "..bantime.." minute(s) \n Reason: "..reason.." "] = target:SteamID()
+		banlogsr = AddECTLogs(banlogs)
+		local json2 = util.TableToJSON( banlogsr )
 		file.Write( "gbanlogs/banlogs.txt", json2 )		
 		print("Ban Added to GBanLogs Ban Archive ;)")
 	end
 
 function addsidbanlog(calling,time,target,reason)
 	local hour = os.date( "%I:%M %p")
-	local date = os.date("%d/%m/%Y",time)
+	local date = os.date("%d/%m/%Y")
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
 	end
 	local nickname = "(Console)"
-	if calling:IsValid() then
+	if IsValid(calling) then
 		nickname = calling:Nick()
 	end
 	local callid = "Console"
-	if calling:IsValid() then
+	if IsValid(calling) then
 		callid = calling:SteamID()
 	end
 	if reason == "" then
@@ -90,13 +84,17 @@ local json = file.Read("gbanlogs/banlogs.txt", "DATA")
 local banlogs
 		if !json then
 			banlogs = {}
-			banlogs.banlogs = {}
+			banlogs.target = {}
 		else
 			banlogs = util.JSONToTable( json )
 		end
-		banlogs.banlogs[" [ "..date.." | "..hour.." ] "..calling:Nick().."( "..calling:SteamID().." ) banned "..target.." for "..time.." minute(s)\n Reason: "..reason.." "] = target
-	local json2 = util.TableToJSON( banlogs )
-		
+		if !banlogs.target then
+			banlogs.target = {}
+		end
+		banlogs.target[otime] = {}
+		banlogs.target.otime[banlogs] = " [ "..date.." | "..hour.." ] "..nickname.."( "..callid.." ) banned "..target.." for "..time.." minute(s) Reason: "..reason..
+		banlogsr = AddECTLogs(banlogs)
+		local json2 = util.TableToJSON( banlogsr )
 		file.Write( "gbanlogs/banlogs.txt", json2 )		
 		print("Ban Added to GBanLogs Ban Archive ;)")
 	end
@@ -104,35 +102,132 @@ local banlogs
 function addsidunbanlog(calling,target)
 	local hour = os.date( "%I:%M %p")
 	local date = os.date("%m/%d/%Y")
+	local otime = os.time()
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
 	end
-	local nickname
-	local id
-	if calling:IsValid() then
-		nickname = "(Console)"
-		id = "Console"
-	else
+	local nickname = "(Console)"
+	if IsValid(calling) then
 		nickname = calling:Nick()
-		id = calling:SteamID()
+	end
+	local callid = "Console"
+	if IsValid(calling) then
+		callid = calling:SteamID()
 	end
 
 		local json = file.Read("gbanlogs/banlogs.txt", "DATA")
 		local banlogs
 		if !json then
 			banlogs = {}
-			banlogs.banlogs = {}
+			banlogs.target = {}
 		else
 			banlogs = util.JSONToTable( json )
 		end
-		banlogs.banlogs[" [ "..date..":"..hour.." ] "..nickname.."( "..id.." ) Unbanned "..target] = target
-
-		local json2 = util.TableToJSON( banlogs )
+		if !banlogs.target then
+			banlogs.target = {}
+		end
+		banlogs.target[otime] = {}
+		banlogs.target.otime[banlogs] = " [ "..date.." | "..hour.." ] "..nickname.."( "..id.." ) Unbanned "..target
+		banlogs.target
+		local json2 = util.TableToJSON( banlogsr )
 		
 		file.Write( "gbanlogs/banlogs.txt", json2 )	
 		print("Unban Added to GBanLogs Ban Archive ;)")		
 	end
+local function AddECTLogs(number,steamid)
+local tbl = {}
+	tbl.steamid = {}
+	tbl.steamid.number = {}
+	tbl.steamid.number.chat = GExtraLogs.chat
+	tbl.steamid.number.dmg = GExtraLogs.dmg
+	tbl.steamid.number.death = GExtraLogs.death
+	local json = util.TableToJSON(tbl)
+	file.Write("gbanlogs/etclogs.txt",json)
+end
+	-- logs
+hook.Add("EntityTakeDamage","DMGLOGS4GLOGS",function(target,dmginfo)
+	local hour = os.date( "%I:%M %p")
+	local date = os.date("%d/%m/%Y")
+	if target:IsPlayer() and IsValid(dmginfo:GetAttacker()) and IsValid(target) and dmginfo:GetAttacker():IsPlayer() and !dmginfo:GetDamage() == 0 then
+		local targetname = target:Nick()
+		local attackername
+		local weapon = dmginfo:GetInflictor():GetClass()
+		local damage = dmginfo:GetDamage()
+		if dmginfo:GetAttacker():IsPlayer() then
+			attackername = dmginfo:GetAttacker():Nick()
+		else
+			attackername = dmginfo:GetAttacker():GetClass()
+		end
+		if !GExtraLogs then
+			GExtraLogs = {}
+		end
+		if !GExtraLogs.dmg then
+			GExtraLogs.dmg = {}
+		end
+		if GExtraLogs.dmg[os.time()] then
+			GExtraLogs.dmg[os.time()+math.Random(0,.9)] = " [ "..date.." | "..hour.." ] "..attackername.."( "..dmginfo:GetAttacker():SteamID().." ) has damaged "..targetname.." for "..damage.." with "..weapon
+		else
+			GExtraLogs.dmg[os.time()] = " [ "..date.." | "..hour.." ] "..attackername.." has damaged "..targetname.." for "..damage.." with "..weapon
+		
+		end
+	end
+end)
+hook.Add("PlayerSay","CHTLOGS4GLOGS",function(sender,text)
+	local hour = os.date( "%I:%M %p")
+	local date = os.date("%d/%m/%Y")
+	if !GExtraLogs then
+		GExtraLogs = {}
+	end
+	if !GExtraLogs.dmg then
+		GExtraLogs.dmg = {}
+	end
+	if gdmtbl.chat[os.time()] then
+		GExtraLogs.chat[os.time()+math.Random(0,.9)] = " [ "..date.." | "..hour.." ] "..sender:Nick().."( "..sender:SteamID().." ): "..text
+	else
+		GExtraLogs.chat[os.time()] = " [ "..date.." | "..hour.." ] "..sender:Nick().."( "..sender:SteamID().." ): "..text
+	end
+end)
+
+
+hook.Add("PlayerDeath","DTHLOGS4GLOGS",function(victim,inflictor,attacker)
+	local hour = os.date( "%I:%M %p")
+	local date = os.date("%d/%m/%Y")
+	if !GExtraLogs then
+		GExtraLogs = {}
+	end
+	if !GExtraLogs.death then
+		GExtraLogs.death = {}
+	end
+	local vname = victim:Nick()
+	local vid = victim:SteamID()
+	local iname = attacker:Nick()
+	local iid = attacker:SteamID()
+	if dmgtbl.death[os.time()] then
+	dmgtbl.death[os.time()+math.Random(0,.9)] = " [ "..date.." | "..hour.." ] "..iname.."( "..iid.." ) Killed "..vname"( "..vid.." ) with "..inflictor:GetClass()
+	else
+		dmgtbl.death[os.time()] = " [ "..date.." | "..hour.." ] "..iname.."( "..iid.." ) Killed "..vname"( "..vid.." ) with "..inflictor:GetClass()
+	end
 	
+	
+end)
+timer.Create("tabledumpglogs",240,0,function()
+	local resettime = os.time() - 240
+	for k,v in pairs(GExtraLogs.death) do
+		if k < resettime then
+			v:Remove()
+		end
+	end
+	for k,v in pairs(GExtraLogs.chat) do
+		if k < resetime then
+			v:Remove()
+		end
+	end
+	for k,v in pairs(GExtraLogs.dmg) do
+		if k < resettime then
+			v:Remove()
+		end
+	end
+end)
 function ULib.kickban( ply, time, reason, admin )
 	if not time or type( time ) ~= "number" then
 		time = 0
