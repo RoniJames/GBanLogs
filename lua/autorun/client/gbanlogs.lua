@@ -1,36 +1,28 @@
-net.Receive( "devbanlogssvr", function()
-	local banlinfo = net.ReadTable()
-	local steamids = net.ReadString()
-	GBackgroundCheck2(banlinfo,steamids)
-end)
-local function settings() 
-	net.Start("devbanlogscl")
-	net.SendToServer()
+function GSendMessage(msg)
+	local hint = vgui.Create("DNotify")
+	hint:SetPos(ScrW()+50,ScrH()+100)
+	hint:SetSize(300)
+	--
+	local frame = vgui.Create("DFrame",hint)
+	frame:Dock(FILL)
+	--
+	local text = vgui.Create("DLabel",frame)
+	text:SetText(msg)
+	--
 end
 
-function GBackgroundCheck2(baninfo,steamid)
-local tbltoprint = table.KeysFromValue(baninfo.banlogs,steamid)
-local settingstbl = baninfo.settings
-local frame = vgui.Create( "DFrame" )
-frame:SetSize( 900, 400 )
-frame:SetTitle("GBanLogs")
-frame:Center()
-frame:MakePopup()
-	local sheet = vgui.Create( "DColumnSheet", frame )
-	sheet:Dock( FILL )
---	local settings = vgui.Create( "DPanel", sheet )
---	settings:Dock( FILL )
---	settings.Paint = function( self, w, h ) draw.RoundedBox( 4, 0, 0, w, h, Color( 255, 255, 255 ) ) end
---	sheet:AddSheet( "Settings", settings, "icon16/bullet_red.png" )
-	for k, v in pairs(tbltoprint)do 
-	local panel = vgui.Create( "DPanel", sheet )
-	panel:Dock( FILL )
-	panel.Paint = function( self, w, h ) draw.RoundedBox( 4, 0, 0, w, h, Color( 255, 255, 255 ) ) end
-	sheet:AddSheet( "Incident "..k, panel, "icon16/bullet_red.png" )
-		local label = vgui.Create( "DLabel", panel )
-		label:SetText( v )
-		label:SetDark( 1 )
-		label:SetFont( "Trebuchet18" )
-		label:SizeToContents()
-	end
-end
+function GReportFrame(tbl)
+	local frame = vgui.Create("DFrame")
+	frame:Center()
+	frame:SetTitle("Report a player")
+	--
+	local counter = vgui.Create("DLabel",frame)
+	counter:SetText("100")
+	counter:SetPos(100,200)
+	--
+	local insert = vgui.Create("DTextEntry")
+	insert:SetText("Insert Report Details")
+	insert:SetPos(50,50)
+	insert.OnChange = function() 
+		local txt = insert:GetText()
+		counter:SetText(#txt-
