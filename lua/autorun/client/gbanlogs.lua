@@ -20,9 +20,24 @@ function GReportFrame(tbl)
 	counter:SetText("100")
 	counter:SetPos(100,200)
 	--
-	local insert = vgui.Create("DTextEntry")
+	local insert = vgui.Create("DTextEntry",frame)
 	insert:SetText("Insert Report Details")
 	insert:SetPos(50,50)
 	insert.OnChange = function() 
 		local txt = insert:GetText()
-		counter:SetText(#txt-
+		counter:SetText(tostring(100-#txt))
+	end
+	--
+	local send = vgui.Create("DButton",frame)
+	send:SetPos(10,10)
+	send:SetText("Report!")
+	send.OnClick = function()
+		if #insert:GetText() > 100 then 
+			chat.AddText(Color(255,0,0)"[GReport]: You have more characters than the max amount")
+		else
+			net.Start()
+			net.WriteString(insert:GetText())
+			net.SendToServer()
+		end
+	end
+end
