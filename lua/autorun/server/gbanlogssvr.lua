@@ -1,4 +1,6 @@
 include("GBanLogsConfig.lua")
+
+util.AddNetworkString("GReportConfirm")
 util.AddNetworkString( "devbanlogscl" )
 util.AddNetworkString( "devbanlogssvr" )
 util.AddNetworkString( "GReportAPlayerNet" )
@@ -17,8 +19,8 @@ if !GBSettings.ShouldUseSpecificGroups then
 else
 	if GBSettings.EchoEnabled and !readlogs == "" and !table.HasValue(GBSettings.SpecificShouldNotShow,ply:GetUserGroup()) and readlogs[ply:SteamID()] then
 		for k, v in pairs(player.GetAll()) do 
-			if table.HasValue(GBSettings.SpecificCanSee,ply:GetUserGroup()) then
-				v:ChatPrint("SERVER: "..ply:Nick().." has been banned before type !review to see why")
+			if table.HasValue(GBSettings.SpecificCanSee,v:GetUserGroup()) then
+				v:ChatPrint("[GBanLogs]: "..ply:Nick().." has been banned before type !review to see why")
 				GBSettings.LastBanned = ply:SteamID()
 			end
 		end
@@ -31,13 +33,13 @@ end
 	
 	
 net.Receive( "GReportAPlayerNet", function( ply )
-	if GGlobalTBL.ReportMax < 3 then
+	if GBSettings.ReportMax < 3 then
 		local txt = net.ReadString()
 		ReportAPlayer(ply,txt)
 	end
 end)
 
-local function ReportAPlayer(call,msg)
+local function ReportAPlayer(call,msg,rep_ply)
 local tbl
 	if !file.IsDir("greports","DATA") then
 		file.CreateDir("greports")
@@ -49,7 +51,7 @@ local tbl
 		tbl = util.JSONToTable(json)
 	end
 	local tnum = #tbl + 1
-	tbl[tnum] = msg
+	tbl[tnum] = {msg = msg, sid = rep_ply:SteamID()}
 	AddECTLogs(tnum)
 	net.Start("GReportConfirm")
 	net.WriteString(tostring(tnum))
@@ -63,7 +65,7 @@ local function devbanlogsfunc(ply)
 	net.Send(ply)
 end
 local function AddECTLogs(steamid)
-local json2 = file.Read("gbanlogs/etclogs.txt","DATA")
+local json2 = file.Read("gbanlogs/etclogs/"..steamid..".txt","DATA")
 local tbl
 	if !json2 then
 		tbl = {}
@@ -72,12 +74,12 @@ local tbl
 	end
 	tbl[steamid] = GExtraLogs or {}
 	local json = util.TableToJSON(tbl)
-	file.Write("gbanlogs/etclogs.txt",json)
+	file.Write("gbanlogs/etclogs/"..steamid..".txt",json)
 end
 function addbanlog(calling,bantime,target,reason)
 	local hour = os.date( "%I:%M %p")
 	local date = os.date("%m/%d/%Y")
-	local targetsid = target:SteamID()
+	local targetid = target:SteamID()
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
 	end
@@ -92,7 +94,7 @@ function addbanlog(calling,bantime,target,reason)
 	if IsValid(calling) then
 		callid = calling:SteamID()
 	end
-	local json = file.Read("gbanlogs/blogs.txt","DATA")
+	local json = file.Read("gbanlogs/bans/"..targetid..".txt","DATA")
 	local banlogs
 		if !json then
 			banlogs = {}
@@ -107,7 +109,7 @@ function addbanlog(calling,bantime,target,reason)
 		local newentry = {adminname = nickname,adminid = callid, targetname = target:Nick(),targetid = targetid,areason = reason,date = date,hour = hour,bantime = bantime,otime = os.time(),type = "Ban" }
 		banlogs[target][#banlogs[targetsid] + 1] = newentry
 		local json2 = util.TableToJSON( banlogs )
-		file.Write( "gbanlogs/blogs.txt", json2 )	
+		file.Write( "gbanlogs/bans/"..targetid..".txt", json2 )	
 		AddECTLogs(target:SteamID())		
 		print("Ban Added to GBanLogs Ban Archive ;)")
 end
@@ -129,7 +131,7 @@ function addsidbanlog(calling,time,target,reason)
 	if reason == "" then
 		reason = "Reason Unspecified"
 	end
-local json = file.Read("gbanlogs/blogs.txt","DATA")
+local json = file.Read("gbanlogs/bans/"..target..".txt","DATA")
 local banlogs
 		if !json then
 			banlogs = {}
@@ -145,7 +147,7 @@ local banlogs
 		banlogs[target][#banlogs[target] + 1] = newentry
 		PrintTable(banlogs)
 		local json2 = util.TableToJSON( banlogs )
-		file.Write( "gbanlogs/blogs.txt", json2 )		
+		file.Write( "gbanlogs/bans/"..target..".txt", json2 )		
 		AddECTLogs(target)
 		print("Ban Added to GBanLogs Ban Archive ;)")
 	end
@@ -164,7 +166,7 @@ function addsidunbanlog(calling,target)
 	if IsValid(calling) then
 		callid = calling:SteamID()
 	end
-local json = file.Read("gbanlogs/blogs.txt","DATA")
+local json = file.Read("gbanlogs/bans/"..target..".txt","DATA")
 local banlogs
 		if !json then
 			banlogs = {}
@@ -180,7 +182,7 @@ local banlogs
 		banlogs[target][#banlogs[target] + 1] = newentry
 		local json2 = util.TableToJSON( banlogs )
 --		AddECTLogs(target)
-		file.Write( "gbanlogs/blogs.txt", json2 )	
+		file.Write( "gbanlogs/bans/"..target..".txt", json2 )	
 		print("Unban Added to GBanLogs Ban Archive ;)")		
 	end
 
@@ -213,7 +215,6 @@ hook.Add("EntityTakeDamage","DMGLOGS4GLOGS",function(target,dmginfo)
 	end
 end)
 hook.Add("PlayerSay","CHTLOGS4GLOGS",function(sender,text)
-if GetRoundState() == ROUND_ACTIVE then
 	local hour = os.date( "%I:%M %p")
 	local otime = os.time()
 	local sendern
@@ -230,7 +231,6 @@ if GetRoundState() == ROUND_ACTIVE then
 	GExtraLogs[#GExtraLogs + 1] = newentry
 
 	--	print("Chat Added") previously used for debugging
-end
 end)
 
 
