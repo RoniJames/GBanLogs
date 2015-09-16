@@ -1,46 +1,83 @@
-include("gbanlogsconfig.lua")
+include("GBanLogsConfig.lua")
 util.AddNetworkString( "devbanlogscl" )
 util.AddNetworkString( "devbanlogssvr" )
-
-
+util.AddNetworkString( "GReportAPlayerNet" )
 hook.Add("PlayerIntitalSpawn","alertadminsonjoincheck",function(ply)
-local readlogs = table.KeyFromValue(util.JSONTOTable(file.Read("gbanlogs/banlogs.txt","DATA").banlogs), ply:SteamID())
-	if alertadminsonjoin and readlogs and !ply:CheckGroup(glogscheckwhitelist) then
+GBSetings.ReportMax[ply:SteamID()] = 0
+local readlogs = util.JSONToTable(file.Read("gbanlogs/blogs.txt","DATA"))
+if !GBSettings.ShouldUseSpecificGroups then
+	if GBSettings.EchoEnabled and !readlogs == "" and !ply:CheckGroup(GBSettings.ShouldShow) and readlogs[ply:SteamID()] then
 		for k, v in pairs(player.GetAll()) do 
-			if v:CheckGroup(groupsthatseetheecho) then
-				v:ChatPrint("SERVER: "..ply:Nick().." has been banned before  for ("..readlogs..")")
+			if v:CheckGroup(GBSettings.CanSee) then
+				v:ChatPrint("SERVER: "..ply:Nick().." has been banned before type !review to see why")
+				GBSettings.LastBanned = ply:SteamID()
 			end
 		end
 	end
-end)
-		
-		
-		
-		
-net.Receive( "devbanlogscl", function( ply )
-	local color = net.ReadString()
-	if !file.IsDir("gbanlogs","DATA") then
-		file.CreateDir("gbanlogs")
+else
+	if GBSettings.EchoEnabled and !readlogs == "" and !table.HasValue(GBSettings.SpecificShouldNotShow,ply:GetUserGroup()) and readlogs[ply:SteamID()] then
+		for k, v in pairs(player.GetAll()) do 
+			if table.HasValue(GBSettings.SpecificCanSee,ply:GetUserGroup()) then
+				v:ChatPrint("SERVER: "..ply:Nick().." has been banned before type !review to see why")
+				GBSettings.LastBanned = ply:SteamID()
+			end
+		end
 	end
-	local colortbl = {}
-	colortbl.color = {}
-	colortbl.extra = {}
-	colortbl.color[1] = color
-	file.Write("gbanlogs/settings.txt","DATA")
+end
+end
+)
+		
 	
-
+	
+	
+net.Receive( "GReportAPlayerNet", function( ply )
+	if GGlobalTBL.ReportMax < 3 then
+		local txt = net.ReadString()
+		ReportAPlayer(ply,txt)
+	end
 end)
-	-- all the required functions
-function devbanlogsfunc(ply)
-	local baninfo = util.JSONToTable(file.Read("gbanlogs/banlogs.txt"))
+
+local function ReportAPlayer(call,msg)
+local tbl
+	if !file.IsDir("greports","DATA") then
+		file.CreateDir("greports")
+	end
+	local json = file.Read("greports/records.txt")
+	if !json then
+		tbl = {}
+	else
+		tbl = util.JSONToTable(json)
+	end
+	local tnum = #tbl + 1
+	tbl[tnum] = msg
+	AddECTLogs(tnum)
+	net.Start("GReportConfirm")
+	net.WriteString(tostring(tnum))
+	net.Send(call)
+end
+
+local function devbanlogsfunc(ply)
+	local baninfo = util.JSONToTable(file.Read("gbanlogs/blogs.txt"))
 	net.Start("devbanlogssvr")
 	net.WriteTable(baninfo)
 	net.Send(ply)
 end
-
+local function AddECTLogs(steamid)
+local json2 = file.Read("gbanlogs/etclogs.txt","DATA")
+local tbl
+	if !json2 then
+		tbl = {}
+	else
+		tbl = util.JSONToTable(json2)
+	end
+	tbl[steamid] = GExtraLogs or {}
+	local json = util.TableToJSON(tbl)
+	file.Write("gbanlogs/etclogs.txt",json)
+end
 function addbanlog(calling,bantime,target,reason)
 	local hour = os.date( "%I:%M %p")
 	local date = os.date("%m/%d/%Y")
+	local targetsid = target:SteamID()
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
 	end
@@ -55,26 +92,29 @@ function addbanlog(calling,bantime,target,reason)
 	if IsValid(calling) then
 		callid = calling:SteamID()
 	end
-		local json = file.Read("gbanlogs/banlogs.txt", "DATA")
-		local banlogs
+	local json = file.Read("gbanlogs/blogs.txt","DATA")
+	local banlogs
 		if !json then
 			banlogs = {}
-			banlogs.banlogs = {}
+			banlogs[targetid] = {}
 		else
-			banlogs = util.JSONToTable( json )
+			banlogs = util.JSONToTable(json)
 		end
-		if !banlogs.banlogs then
-			banlogs.banlogs = {}
+		if !banlogs then
+			banlogs = {}
 		end
-		banlogs.banlogs[" [ "..date.." | "..hour.." ] "..nickname.."( "..callid.." ) banned "..target:Nick().."("..target:SteamID()..") for "..bantime.." minute(s) \n Reason: "..reason.." "] = target:SteamID()
+		banlogs[targetid] = banlogs[targetid] or {}
+		local newentry = {adminname = nickname,adminid = callid, targetname = target:Nick(),targetid = targetid,areason = reason,date = date,hour = hour,bantime = bantime,otime = os.time(),type = "Ban" }
+		banlogs[target][#banlogs[targetsid] + 1] = newentry
 		local json2 = util.TableToJSON( banlogs )
-		file.Write( "gbanlogs/banlogs.txt", json2 )		
+		file.Write( "gbanlogs/blogs.txt", json2 )	
+		AddECTLogs(target:SteamID())		
 		print("Ban Added to GBanLogs Ban Archive ;)")
-	end
+end
 
 function addsidbanlog(calling,time,target,reason)
 	local hour = os.date( "%I:%M %p")
-	local date = os.date("%d/%m/%Y")
+	local date = os.date("%m/%d/%Y")
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
 	end
@@ -89,21 +129,24 @@ function addsidbanlog(calling,time,target,reason)
 	if reason == "" then
 		reason = "Reason Unspecified"
 	end
-		local json = file.Read("gbanlogs/banlogs.txt", "DATA")
-		local banlogs
+local json = file.Read("gbanlogs/blogs.txt","DATA")
+local banlogs
 		if !json then
 			banlogs = {}
-			banlogs.banlogs = {}
+			banlogs[target] = {}
 		else
-			banlogs = util.JSONToTable( json )
+			banlogs = util.JSONToTable(json)
 		end
-		if !banlogs.banlogs then
-			banlogs.banlogs = {}
+		if !banlogs then
+			banlogs = {}
 		end
-		banlogs.banlogs[" [ "..date.." | "..hour.." ] "..nickname.."( "..callid.." ) banned "..target.." for "..time.." minute(s)\n Reason: "..reason.." "] = target
-	local json2 = util.TableToJSON( banlogs )
-		
-		file.Write( "gbanlogs/banlogs.txt", json2 )		
+		banlogs[target] = banlogs[target] or {}
+		local newentry = {adminname = nickname,adminid = callid, targetid = target,areason = reason,bantime = time,date = date,hour = hour,otime = os.time(),type = "IDBan" }
+		banlogs[target][#banlogs[target] + 1] = newentry
+		PrintTable(banlogs)
+		local json2 = util.TableToJSON( banlogs )
+		file.Write( "gbanlogs/blogs.txt", json2 )		
+		AddECTLogs(target)
 		print("Ban Added to GBanLogs Ban Archive ;)")
 	end
 
@@ -121,27 +164,120 @@ function addsidunbanlog(calling,target)
 	if IsValid(calling) then
 		callid = calling:SteamID()
 	end
-
-		local json = file.Read("gbanlogs/banlogs.txt", "DATA")
-		local banlogs
+local json = file.Read("gbanlogs/blogs.txt","DATA")
+local banlogs
 		if !json then
 			banlogs = {}
-			banlogs.banlogs = {}
+			banlogs[target] = {}
 		else
-			banlogs = util.JSONToTable( json )
+			banlogs = util.JSONToTable(json)
 		end
-		if !banlogs.banlogs then
-			banlogs.banlogs = {}
+		if !banlogs then
+			banlogs = {}
 		end
-		
-		banlogs.banlogs[" [ "..date..":"..hour.." ] "..nickname.."( "..callid.." ) Unbanned "..target] = target
-
+		banlogs[target] = banlogs[target] or {}
+		local newentry = {adminname = nickname,adminid = callid, targetid = target,date = date,hour = hour,otime = os.time(),type = "Unban" }
+		banlogs[target][#banlogs[target] + 1] = newentry
 		local json2 = util.TableToJSON( banlogs )
-		
-		file.Write( "gbanlogs/banlogs.txt", json2 )	
+--		AddECTLogs(target)
+		file.Write( "gbanlogs/blogs.txt", json2 )	
 		print("Unban Added to GBanLogs Ban Archive ;)")		
 	end
+
+	-- LogHooks
+hook.Add("EntityTakeDamage","DMGLOGS4GLOGS",function(target,dmginfo)
+	local hour = os.date( "%I:%M %p")
+	if IsValid(target) and IsValid(dmginfo:GetAttacker()) and target:IsPlayer() and dmginfo:GetDamage() > 0 and GetRoundState() == ROUND_ACTIVE then
+		local targetname = target:Nick()
+		local attackername
+		local weapon = dmginfo:GetInflictor():GetClass()
+		local damage = dmginfo:GetDamage()
+		local vid = target:SteamID()
+		local arole 
+		local trole = target:GetRole()
+		local aid
+		if dmginfo:GetAttacker():IsPlayer() then
+			arole = dmginfo:GetAttacker():GetRole()
+			aid = dmginfo:GetAttacker():SteamID()
+			attackername = dmginfo:GetAttacker():Nick()
+		else
+			arole = "W"
+			attackername = dmginfo:GetAttacker():GetClass()
+			aid = "None Player"
+		end
+
+		GExtraLogs = GExtraLogs or {}
+		local newentry = {aname = attackername,targetrole = trole,attackerrole = arole,targetid = aid,victimid = vid , victimname = target:Nick(),dmg = dmginfo:GetDamage(),weapon = weapon, otime = os.time(),hour = hour, type = "Damage"}
+		GExtraLogs[#GExtraLogs + 1] = newentry
+		
+	end
+end)
+hook.Add("PlayerSay","CHTLOGS4GLOGS",function(sender,text)
+if GetRoundState() == ROUND_ACTIVE then
+	local hour = os.date( "%I:%M %p")
+	local otime = os.time()
+	local sendern
+	local senderi
+	if IsValid(sender) then
+		sendern = sender:Nick()
+		senderi = sender:SteamID()
+	else
+		sendern = "Console"
+		senderi = "Console"
+	end
+	GExtraLogs = GExtraLogs or {}
+	local newentry = {sendername = sendern,targetid = senderi,message = text, otime = otime,hour = hour, type = "Chat"}
+	GExtraLogs[#GExtraLogs + 1] = newentry
+
+	--	print("Chat Added") previously used for debugging
+end
+end)
+
+
+hook.Add("PlayerDeath","DTHLOGS4GLOGS",function(victim,inflictor,attacker)
+if GetRoundState() == ROUND_ACTIVE then
+	local hour = os.date( "%I:%M %p")
+	local newentry
+	if !GExtraLogs then
+		GExtraLogs = {}
+	end
+	if !GExtraLogs.death then
+		GExtraLogs.death = {}
+	end
+	local vname = victim:Nick()
+	local vid = victim:SteamID()
+	local arole
+	local trole = victim:GetRole()
+	local iname
+	local iid
+	if IsValid(attacker) and attacker:IsPlayer() then
+		arole = attacker:GetRole()
+		iname = attacker:Nick()
+		iid = attacker:SteamID()
+	else
+		arole = "W"
+		iid = "World/Unknown"
+		iname = "World/Unknown"
+	end
+	newentry = {attackername = iname,targetrole = trole,attackerrole = arole,targetid = iid,victimid = vid , victimname = vname,weapon = inflictor:GetClass(), otime = os.time(),hour = hour, date = date, type = "Death"}
+	GExtraLogs[#GExtraLogs + 1] = newentry
+
+--	print("Death Added") previously used for debugging
 	
+	
+end
+end)
+timer.Create("tabledumpglogs",240,0,function()
+if GExtraLogs then
+	local resettime = os.time() - 240
+	for k,v in pairs(GExtraLogs) do
+	v.otime = v.otime or 0
+		if v.otime < resettime then
+			table.remove( v )
+		end
+	end
+end
+end)
 function ULib.kickban( ply, time, reason, admin )
 	if not time or type( time ) ~= "number" then
 		time = 0
