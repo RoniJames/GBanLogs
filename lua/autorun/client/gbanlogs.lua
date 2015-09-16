@@ -238,6 +238,8 @@ function GReportFrame()
 	--
 	local insert = vgui.Create("DTextEntry",frame)
 	insert:SetText("Insert Report Details")
+	insert:SetSize(200,100)
+	insert:SetMultiline(true)
 	insert:SetPos(50,50)
 	insert.OnChange = function() 
 		local txt = insert:GetText()
