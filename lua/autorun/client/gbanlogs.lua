@@ -226,37 +226,70 @@ function GMessage(msg,type,seconds)
 end
 
 function GReportFrame()
+local tbl = {}
+tbl.players = {}
 	local frame = vgui.Create("DFrame")
 	frame:Center()
-	frame:SetSize(900,400)
+	frame:SetSize(400,300)
 	frame:SetTitle("Report a player")
 	frame:MakePopup()
 	--
 	local counter = vgui.Create("DLabel",frame)
 	counter:SetText("100")
-	counter:SetPos(100,200)
+	counter:SetPos(300,200)
+	--
+	local namehint = vgui.Create("DLabel",frame)
+	local name
+	if tbl.target then
+		name = tbl.target:Nick()
+	else
+		name = "None Selected"
+	end
+	counter:SetText("Player being reported: "..name)
+	
+	counter:SetPos(300,200)
 	--
 	local insert = vgui.Create("DTextEntry",frame)
 	insert:SetText("Insert Report Details")
 	insert:SetSize(200,100)
 	insert:SetMultiline(true)
-	insert:SetPos(50,50)
+	insert:SetPos(100,100)
 	insert.OnChange = function() 
 		local txt = insert:GetText()
 		counter:SetText(tostring(100-#txt))
 	end
 	--
+	local players = vgui.Create("DComboBox",frame)
+	players:SetPos(200,100)
+	players:SetSize(100,20)
+	players:SetValue("Player to report")
+	for k,v in pairs(player.GetAll()) do
+		players:AddChoice(v:Nick().."( "..v:SteamID().." )")
+		tbl.players[#tbl.players + 1] = v
+	end
+	players.OnSelect = function( panel, index, value )
+		tbl.target = tbl.players[index]
+		counter:SetText("Player being reported: "..tbl.target:Nick())
+	end
+	--
+	--
 	local send = vgui.Create("DButton",frame)
-	send:SetPos(200,100)
+	send:SetPos(165,210)
 	send:SetText("Report!")
-	send.OnClick = function()
+	send.DoClick = function()
+		print("clicked")
 		if #insert:GetText() > 100 then 
-			GMessage("[GReport]: You have more characters than the max amount","hud")
-		elseif #insert:GetText() < 10 then
-			GMessage("[GReport]: Describe the incident in more detail","hud")
+			GMessage("[GReport]: You have more characters than the max amount!")
+		elseif #insert:GetText() < 10 or insert:GetText() == "Insert Report Details" then
+			GMessage("[GReport]: Describe the incident in more detail!")
 		else
-			net.Start()
-			net.WriteString(insert:GetText())
+			local tbltosend = {}
+			tbltosend.targetid = tbl.target:SteamID()
+			tbltosend.targetname = tbl.target:Nick()
+			tbltosend.callid = LocalPlayer():SteamID()
+			tbltosend.callname = LocalPlayer():Nick()
+			net.Start("")
+			net.WriteTable(tbltosend)
 			net.SendToServer()
 		end
 	end
