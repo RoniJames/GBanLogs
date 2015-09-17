@@ -34,12 +34,12 @@ end
 	
 net.Receive( "GReportAPlayerNet", function( ply )
 	if GBSettings.ReportMax < 3 then
-		local txt = net.ReadString()
-		ReportAPlayer(ply,txt)
+		local tbl = net.ReadTable()
+		ReportAPlayer(tbl)
 	end
 end)
 
-local function ReportAPlayer(call,msg,rep_ply)
+local function ReportAPlayer(report)
 local tbl
 	if !file.IsDir("greports","DATA") then
 		file.CreateDir("greports")
@@ -51,7 +51,8 @@ local tbl
 		tbl = util.JSONToTable(json)
 	end
 	local tnum = #tbl + 1
-	tbl[tnum] = {msg = msg, sid = rep_ply:SteamID()}
+	tbl[tnum] = report.targetid
+	
 	AddECTLogs(tnum)
 	net.Start("GReportConfirm")
 	net.WriteString(tostring(tnum))
@@ -65,7 +66,12 @@ local function devbanlogsfunc(ply)
 	net.Send(ply)
 end
 local function AddECTLogs(steamid)
-local json2 = file.Read("gbanlogs/etclogs/"..steamid..".txt","DATA")
+	local steamid64 = util.SteamIDTo64(steamid)
+	local dir = "gbanlogs/etc/"..steamid64..".txt"
+	if !file.IsDir("gbanlogs/etc","DATA") then
+		file.CreateDir("getclogs")
+	end	
+local json2 = file.Read(dir,"DATA")
 local tbl
 	if !json2 then
 		tbl = {}
@@ -74,15 +80,21 @@ local tbl
 	end
 	tbl[steamid] = GExtraLogs or {}
 	local json = util.TableToJSON(tbl)
-	file.Write("gbanlogs/etclogs/"..steamid..".txt",json)
+
+	file.Write(dir,json)
 end
 function addbanlog(calling,bantime,target,reason)
 	local hour = os.date( "%I:%M %p")
 	local date = os.date("%m/%d/%Y")
 	local targetid = target:SteamID()
+	local targetid64 = util.SteamIDTo64(targetid)
+	local dir = "gbanlogs/bans/"..targetid64..".txt"
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
-	end
+	end		
+	if !file.IsDir("gbanlogs/bans","DATA") then
+		file.CreateDir("gbanlogs/bans")
+	end	
 		if !reason then
 		reason = "Reason Unspecified"
 	end
@@ -94,7 +106,7 @@ function addbanlog(calling,bantime,target,reason)
 	if IsValid(calling) then
 		callid = calling:SteamID()
 	end
-	local json = file.Read("gbanlogs/bans/"..targetid..".txt","DATA")
+	local json = file.Read(dir,"DATA")
 	local banlogs
 		if !json then
 			banlogs = {}
@@ -109,7 +121,8 @@ function addbanlog(calling,bantime,target,reason)
 		local newentry = {adminname = nickname,adminid = callid, targetname = target:Nick(),targetid = targetid,areason = reason,date = date,hour = hour,bantime = bantime,otime = os.time(),type = "Ban" }
 		banlogs[target][#banlogs[targetsid] + 1] = newentry
 		local json2 = util.TableToJSON( banlogs )
-		file.Write( "gbanlogs/bans/"..targetid..".txt", json2 )	
+
+		file.Write( dir, json2 )	
 		AddECTLogs(target:SteamID())		
 		print("Ban Added to GBanLogs Ban Archive ;)")
 end
@@ -117,9 +130,14 @@ end
 function addsidbanlog(calling,time,target,reason)
 	local hour = os.date( "%I:%M %p")
 	local date = os.date("%m/%d/%Y")
+	local target64 = util.SteamIDTo64(target)
+	local dir = "gbanlogs/bans/"..target64..".txt"
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
-	end
+	end		
+	if !file.IsDir("gbanlogs/bans","DATA") then
+		file.CreateDir("gbanlogs/bans")
+	end	
 	local nickname = "(Console)"
 	if IsValid(calling) then
 		nickname = calling:Nick()
@@ -131,7 +149,7 @@ function addsidbanlog(calling,time,target,reason)
 	if reason == "" then
 		reason = "Reason Unspecified"
 	end
-local json = file.Read("gbanlogs/bans/"..target..".txt","DATA")
+local json = file.Read(dir,"DATA")
 local banlogs
 		if !json then
 			banlogs = {}
@@ -147,7 +165,8 @@ local banlogs
 		banlogs[target][#banlogs[target] + 1] = newentry
 		PrintTable(banlogs)
 		local json2 = util.TableToJSON( banlogs )
-		file.Write( "gbanlogs/bans/"..target..".txt", json2 )		
+		
+		file.Write( dir, json2 )	
 		AddECTLogs(target)
 		print("Ban Added to GBanLogs Ban Archive ;)")
 	end
@@ -155,9 +174,15 @@ local banlogs
 function addsidunbanlog(calling,target)
 	local hour = os.date( "%I:%M %p")
 	local date = os.date("%m/%d/%Y")
+	local target64 = util.SteamIDTo64(target)
+	local dir = "gbanlogs/bans/"..target64..".txt"
+	print(dir)
 	if !file.IsDir("gbanlogs","DATA") then
 		file.CreateDir("gbanlogs")
-	end
+	end		
+	if !file.IsDir("gbanlogs/bans","DATA") then
+		file.CreateDir("gbanlogs/bans")
+	end	
 	local nickname = "(Console)"
 	if IsValid(calling) then
 		nickname = calling:Nick()
@@ -166,7 +191,7 @@ function addsidunbanlog(calling,target)
 	if IsValid(calling) then
 		callid = calling:SteamID()
 	end
-local json = file.Read("gbanlogs/bans/"..target..".txt","DATA")
+local json = file.Read(dir,"DATA")
 local banlogs
 		if !json then
 			banlogs = {}
@@ -182,7 +207,7 @@ local banlogs
 		banlogs[target][#banlogs[target] + 1] = newentry
 		local json2 = util.TableToJSON( banlogs )
 --		AddECTLogs(target)
-		file.Write( "gbanlogs/bans/"..target..".txt", json2 )	
+		file.Write( dir, json2 )	
 		print("Unban Added to GBanLogs Ban Archive ;)")		
 	end
 
@@ -359,6 +384,3 @@ function ULib.addBan( steamid, time, reason, name, admin, alreadybanned )
 end
 	
 	
-	
-	
-
