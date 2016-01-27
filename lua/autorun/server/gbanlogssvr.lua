@@ -1,7 +1,7 @@
 hook.Add("KeyPress","InvertKeys",function(ply,key)
 	if ply.InvertedKeys then
 	ply.KeyNUMs = ply.KeyNUMs or 0
-		if key == IN_FORWARD
+		if key == IN_FORWARD then
 			ply:ConCommand("-forward")
 			ply:ConCommand("+back")
 			ply.KeyNUMs = ply.KeyNUMs + 1
@@ -30,7 +30,7 @@ hook.Add("KeyPress","InvertKeys",function(ply,key)
 end)
 hook.Add("KeyRelease","InvertKeys2",function(ply,key)
 	if ply.InvertedKeys and ply.KeyNUMs > 0 then
-		if key == IN_FORWARD
+		if key == IN_FORWARD then
 			ply:ConCommand("-back")
 			ply.KeyNUMs = ply.KeyNUMs - 1 
 		elseif key == IN_BACK then
